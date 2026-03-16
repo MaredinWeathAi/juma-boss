@@ -121,8 +121,8 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <StatCard
           icon={TrendingUp}
-          label="Revenue This Month"
-          value={stats ? formatCurrency(stats.revenueThisMonth) : '$0'}
+          label="Total Revenue"
+          value={stats ? formatCurrency(stats.totalRevenue) : '$0'}
           trend={{ direction: 'up', percentage: 12 }}
         />
         <StatCard

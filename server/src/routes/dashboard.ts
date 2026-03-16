@@ -68,6 +68,7 @@ router.get('/stats', authenticateToken, (req: AuthRequest, res) => {
 
     res.json({
       totalRevenue: totalRevenueResult.total,
+      revenueThisMonth: monthlyRevenueResult.total,
       revenueTodayAmount: revenueTodayResult.total,
       ordersToday: ordersCountTodayResult.count,
       pendingOrders: pendingOrdersResult.count,
@@ -109,7 +110,47 @@ router.get('/recent-orders', authenticateToken, (req: AuthRequest, res) => {
   }
 });
 
-// GET revenue chart (last 30 days)
+// GET revenue chart (last 30 days) - supports both /revenue and /revenue-chart
+router.get('/revenue', authenticateToken, (req: AuthRequest, res) => {
+  const db = getDatabase();
+
+  try {
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
+    const revenueByDate = db
+      .prepare(`
+        SELECT
+          DATE(created_at) as date,
+          COALESCE(SUM(total_amount), 0) as revenue,
+          0 as cost,
+          COALESCE(SUM(total_amount), 0) as profit
+        FROM orders
+        WHERE user_id = ? AND status != 'cancelled' AND created_at >= ?
+        GROUP BY DATE(created_at)
+        ORDER BY date ASC
+      `)
+      .all(req.userId, thirtyDaysAgo.toISOString()) as any[];
+
+    // Fill in missing dates with 0
+    const chartData = [];
+    for (let i = 0; i < 30; i++) {
+      const date = new Date(thirtyDaysAgo.getTime() + i * 24 * 60 * 60 * 1000);
+      const dateStr = date.toISOString().split('T')[0];
+      const dayData = revenueByDate.find((r) => r.date === dateStr);
+      chartData.push({
+        date: dateStr,
+        revenue: dayData?.revenue || 0,
+        cost: dayData?.cost || 0,
+        profit: dayData?.profit || 0,
+      });
+    }
+
+    res.json(chartData);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch revenue chart' });
+  }
+});
+
 router.get('/revenue-chart', authenticateToken, (req: AuthRequest, res) => {
   const db = getDatabase();
 
@@ -179,8 +220,10 @@ router.get('/top-products', authenticateToken, (req: AuthRequest, res) => {
     const result = topProducts.map((p) => ({
       id: p.id,
       name: p.name,
+      orders: p.order_count,
       orderCount: p.order_count,
       totalQuantity: p.total_quantity,
+      revenue: p.total_revenue,
       totalRevenue: p.total_revenue,
     }));
 

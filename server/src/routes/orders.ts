@@ -30,9 +30,11 @@ router.get('/', authenticateToken, (req: AuthRequest, res) => {
 
     const result = orders.map((o) => ({
       id: o.id,
+      orderNumber: o.order_number || `ORD-${o.id.slice(0, 8).toUpperCase()}`,
       customerId: o.customer_id,
       customerName: o.customer_name,
       status: o.status,
+      total: o.total_amount,
       totalAmount: o.total_amount,
       notes: o.notes,
       deliveryDate: o.delivery_date,

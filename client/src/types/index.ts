@@ -167,6 +167,7 @@ export interface MarketplaceListing {
 }
 
 export interface DashboardStats {
+  totalRevenue: number;
   revenueThisMonth: number;
   ordersToday: number;
   pendingOrders: number;
