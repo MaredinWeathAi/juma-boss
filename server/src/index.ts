@@ -34,14 +34,14 @@ app.use(express.urlencoded({ extended: true }));
 // Initialize database
 initializeSchema();
 
-// Check if database needs seeding
+// Check if database needs seeding (re-seed if admin account missing)
 const db = getDatabase();
 const userCount = db.prepare('SELECT COUNT(*) as count FROM users').get() as any;
+const adminExists = db.prepare("SELECT COUNT(*) as count FROM users WHERE email = 'admin@jumaboss.com'").get() as any;
 
-if (userCount.count === 0) {
-  console.log('Database is empty. Seeding demo data...');
+if (userCount.count === 0 || adminExists.count === 0) {
+  console.log('Seeding database with demo data...');
   try {
-    // Import seed - it runs automatically when imported
     await import('./db/seed.js').catch(() => {
       console.log('Seed file will be created on startup');
     });
