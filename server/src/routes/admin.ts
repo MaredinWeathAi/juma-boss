@@ -330,7 +330,6 @@ router.put('/clients/:id', (req: AuthRequest, res) => {
     if (tier && validTiers.includes(tier)) { updates.push('tier = ?'); values.push(tier); }
     if (phone !== undefined) { updates.push('phone = ?'); values.push(phone || null); }
     if (password) {
-      const bcrypt = require('bcryptjs');
       updates.push('password = ?');
       values.push(bcrypt.hashSync(password, 10));
     }

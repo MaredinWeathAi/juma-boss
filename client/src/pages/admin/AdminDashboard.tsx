@@ -5,7 +5,7 @@ import { Header } from '@/components/layout/Header'
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner'
 import { StatCard } from '@/components/shared/StatCard'
 import { DataTable, Column } from '@/components/shared/DataTable'
-import { formatCurrency, formatDate } from '@/lib/utils'
+import { formatCurrency } from '@/lib/utils'
 import {
   BarChart,
   Bar,
@@ -23,44 +23,17 @@ import {
 } from 'recharts'
 import { Users, TrendingUp, DollarSign, ShoppingCart } from 'lucide-react'
 
-interface AdminStats {
-  totalBakers: number
-  activeBakers: number
-  platformMRR: number
-  totalOrders: number
-  totalRevenue: number
-  totalCustomers: number
-}
-
-interface TierDistribution {
-  tier: string
-  count: number
-  color: string
-}
-
-interface RevenueByTier {
-  tier: string
-  revenue: number
-  color: string
-}
-
-interface DailyOrderData {
-  date: string
-  orders: number
-}
-
 interface TopBaker {
   id: string
   name: string
   bakeryName: string
   tier: string
-  orders: number
+  orderCount: number
   revenue: number
 }
 
 interface TopProduct {
-  id: string
-  productName: string
+  name: string
   bakeryName: string
   category: string
   timesOrdered: number
@@ -75,32 +48,21 @@ const TIER_COLORS: Record<string, string> = {
 }
 
 export default function AdminDashboard() {
-  const [stats, setStats] = useState<AdminStats | null>(null)
-  const [tierDistribution, setTierDistribution] = useState<TierDistribution[]>([])
-  const [revenueByTier, setRevenueByTier] = useState<RevenueByTier[]>([])
-  const [dailyOrders, setDailyOrders] = useState<DailyOrderData[]>([])
-  const [topBakers, setTopBakers] = useState<TopBaker[]>([])
-  const [topProducts, setTopProducts] = useState<TopProduct[]>([])
+  const [stats, setStats] = useState<any>(null)
+  const [analytics, setAnalytics] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
     const fetchAdminData = async () => {
       try {
-        const [statsRes, tierRes, revenueRes, ordersRes, bakersRes, productsRes] = await Promise.all([
+        // Only 2 endpoints exist: /admin/stats and /admin/analytics
+        const [statsRes, analyticsRes] = await Promise.all([
           api.get('/admin/stats'),
-          api.get('/admin/tier-distribution'),
-          api.get('/admin/revenue-by-tier'),
-          api.get('/admin/daily-orders'),
-          api.get('/admin/top-bakers'),
-          api.get('/admin/top-products'),
+          api.get('/admin/analytics'),
         ])
 
-        setStats(statsRes.data || statsRes)
-        setTierDistribution(tierRes.data || tierRes || [])
-        setRevenueByTier(revenueRes.data || revenueRes || [])
-        setDailyOrders(ordersRes.data || ordersRes || [])
-        setTopBakers(bakersRes.data || bakersRes || [])
-        setTopProducts(productsRes.data || productsRes || [])
+        setStats(statsRes)
+        setAnalytics(analyticsRes)
       } catch (error) {
         handleApiError(error)
       } finally {
@@ -114,6 +76,21 @@ export default function AdminDashboard() {
   if (isLoading) {
     return <LoadingSpinner />
   }
+
+  // Map data from API responses
+  const tierDistribution = (stats?.tierBreakdown || []).map((t: any) => ({
+    ...t,
+    color: TIER_COLORS[t.tier] || '#666',
+  }))
+
+  const revenueByTier = (stats?.revenueByTier || []).map((t: any) => ({
+    ...t,
+    color: TIER_COLORS[t.tier] || '#666',
+  }))
+
+  const dailyOrders = analytics?.dailyOrders || []
+  const topBakers: TopBaker[] = analytics?.topBakers || []
+  const topProducts: TopProduct[] = analytics?.topProducts || []
 
   const bakerColumns: Column<TopBaker>[] = [
     {
@@ -130,13 +107,19 @@ export default function AdminDashboard() {
       key: 'tier',
       label: 'Tier',
       render: (value) => (
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary capitalize">
+        <span
+          className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize"
+          style={{
+            backgroundColor: (TIER_COLORS[value] || '#666') + '20',
+            color: TIER_COLORS[value] || '#666',
+          }}
+        >
           {value}
         </span>
       ),
     },
     {
-      key: 'orders',
+      key: 'orderCount',
       label: 'Orders',
       sortable: true,
       render: (value) => <span className="font-medium">{value}</span>,
@@ -151,7 +134,7 @@ export default function AdminDashboard() {
 
   const productColumns: Column<TopProduct>[] = [
     {
-      key: 'productName',
+      key: 'name',
       label: 'Product',
       render: (value, product) => (
         <div>
@@ -163,7 +146,7 @@ export default function AdminDashboard() {
     {
       key: 'category',
       label: 'Category',
-      render: (value) => <span className="text-sm">{value}</span>,
+      render: (value) => <span className="text-sm capitalize">{value}</span>,
     },
     {
       key: 'timesOrdered',
@@ -201,7 +184,7 @@ export default function AdminDashboard() {
         <StatCard
           icon={DollarSign}
           label="Platform MRR"
-          value={stats ? formatCurrency(stats.platformMRR) : '$0'}
+          value={formatCurrency(stats?.mrr || 0)}
         />
         <StatCard
           icon={ShoppingCart}
@@ -211,7 +194,7 @@ export default function AdminDashboard() {
         <StatCard
           icon={DollarSign}
           label="Total Revenue"
-          value={stats ? formatCurrency(stats.totalRevenue) : '$0'}
+          value={formatCurrency(stats?.totalRevenue || 0)}
         />
         <StatCard
           icon={Users}
@@ -233,12 +216,12 @@ export default function AdminDashboard() {
                   cx="50%"
                   cy="50%"
                   labelLine={false}
-                  label={({ tier, count }) => `${tier}: ${count}`}
+                  label={({ tier, count }: any) => `${tier}: ${count}`}
                   outerRadius={100}
                   fill="#8884d8"
                   dataKey="count"
                 >
-                  {tierDistribution.map((entry, index) => (
+                  {tierDistribution.map((entry: any, index: number) => (
                     <Cell key={`cell-${index}`} fill={TIER_COLORS[entry.tier] || '#666'} />
                   ))}
                 </Pie>
@@ -263,7 +246,7 @@ export default function AdminDashboard() {
                 <YAxis stroke="hsl(var(--muted-foreground))" />
                 <Tooltip
                   contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))' }}
-                  formatter={(value) => formatCurrency(Number(value))}
+                  formatter={(value: any) => formatCurrency(Number(value))}
                 />
                 <Bar dataKey="revenue" fill="#F97316" radius={[8, 8, 0, 0]} />
               </BarChart>
@@ -290,6 +273,7 @@ export default function AdminDashboard() {
               />
               <Legend />
               <Line type="monotone" dataKey="orders" stroke="#F97316" strokeWidth={2} dot={false} />
+              <Line type="monotone" dataKey="revenue" stroke="#F59E0B" strokeWidth={2} dot={false} />
             </LineChart>
           </ResponsiveContainer>
         ) : (
@@ -326,7 +310,7 @@ export default function AdminDashboard() {
           <DataTable
             columns={productColumns}
             data={topProducts}
-            keyField="id"
+            keyField="name"
           />
         </div>
       )}
