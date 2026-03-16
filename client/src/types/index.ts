@@ -7,7 +7,7 @@ export interface User {
   bakeryName: string;
   phone?: string;
   bio?: string;
-  role: 'admin' | 'owner' | 'manager' | 'employee';
+  role: 'admin' | 'baker' | 'owner' | 'manager' | 'employee';
   tier: Tier;
   createdAt: string;
   updatedAt: string;

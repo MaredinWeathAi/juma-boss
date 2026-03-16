@@ -8,8 +8,6 @@ import { formatCurrency, formatDate } from '@/lib/utils'
 import {
   BarChart,
   Bar,
-  LineChart,
-  Line,
   PieChart,
   Pie,
   Cell,
@@ -17,49 +15,26 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
   ResponsiveContainer,
 } from 'recharts'
-import { ArrowLeft, DollarSign, ShoppingCart, Users, Package, Briefcase } from 'lucide-react'
-
-interface ClientDetail {
-  id: string
-  name: string
-  bakeryName: string
-  email: string
-  tier: string
-  createdAt: string
-  totalRevenue: number
-  monthlyRevenue: number
-  totalOrders: number
-  totalProducts: number
-  totalCustomers: number
-  employeeCount: number
-}
-
-interface RevenueMonth {
-  month: string
-  revenue: number
-}
-
-interface OrderStatus {
-  status: string
-  count: number
-}
+import { ArrowLeft, DollarSign, ShoppingCart, Users, Package, Briefcase, Pencil, Trash2 } from 'lucide-react'
+import { toast } from 'sonner'
 
 interface RecentOrder {
   id: string
-  orderNumber: string
-  total: number
+  customerName: string
+  totalAmount: number
   status: string
+  paymentStatus: string
   createdAt: string
 }
 
-interface Product {
+interface ProductItem {
   id: string
   name: string
   category: string
   basePrice: number
+  costPrice: number
   isActive: boolean
 }
 
@@ -83,34 +58,18 @@ const ORDER_STATUS_COLORS: Record<string, string> = {
 export default function AdminClientDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const [client, setClient] = useState<ClientDetail | null>(null)
-  const [revenueByMonth, setRevenueByMonth] = useState<RevenueMonth[]>([])
-  const [orderStatuses, setOrderStatuses] = useState<OrderStatus[]>([])
-  const [recentOrders, setRecentOrders] = useState<RecentOrder[]>([])
-  const [products, setProducts] = useState<Product[]>([])
-  const [topCustomers, setTopCustomers] = useState<TopCustomer[]>([])
+  const [data, setData] = useState<any>(null)
   const [selectedTier, setSelectedTier] = useState<string>('')
   const [isLoading, setIsLoading] = useState(true)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
   useEffect(() => {
     const fetchClientData = async () => {
       try {
-        const [clientRes, revenueRes, ordersRes, recentRes, productsRes, customersRes] = await Promise.all([
-          api.get(`/admin/clients/${id}`),
-          api.get(`/admin/clients/${id}/revenue-by-month`),
-          api.get(`/admin/clients/${id}/order-statuses`),
-          api.get(`/admin/clients/${id}/recent-orders`),
-          api.get(`/admin/clients/${id}/products`),
-          api.get(`/admin/clients/${id}/top-customers`),
-        ])
-
-        setClient(clientRes.data || clientRes)
-        setRevenueByMonth(revenueRes.data || revenueRes || [])
-        setOrderStatuses(ordersRes.data || ordersRes || [])
-        setRecentOrders(recentRes.data || recentRes || [])
-        setProducts(productsRes.data || productsRes || [])
-        setTopCustomers(customersRes.data || customersRes || [])
-        setSelectedTier(clientRes.data?.tier || clientRes.tier || '')
+        // Single endpoint returns everything
+        const response = await api.get(`/admin/clients/${id}`)
+        setData(response)
+        setSelectedTier(response.tier || '')
       } catch (error) {
         handleApiError(error)
       } finally {
@@ -127,26 +86,44 @@ export default function AdminClientDetail() {
     try {
       await api.put(`/admin/clients/${id}/tier`, { tier: newTier })
       setSelectedTier(newTier)
-      if (client) {
-        setClient({ ...client, tier: newTier })
+      if (data) {
+        setData({ ...data, tier: newTier })
       }
+      toast.success(`Tier updated to ${newTier}`)
     } catch (error) {
       handleApiError(error)
     }
   }
 
-  if (isLoading || !client) {
+  const handleDelete = async () => {
+    try {
+      await api.delete(`/admin/clients/${id}`)
+      toast.success('Client deleted successfully')
+      navigate('/admin/clients')
+    } catch (error) {
+      handleApiError(error)
+    }
+  }
+
+  if (isLoading || !data) {
     return <LoadingSpinner />
   }
 
+  const stats = data.stats || {}
+  const revenueByMonth = (data.revenueByMonth || []).reverse()
+  const orderStatuses = data.ordersByStatus || []
+  const recentOrders: RecentOrder[] = data.recentOrders || []
+  const products: ProductItem[] = data.products || []
+  const topCustomers: TopCustomer[] = data.topCustomers || []
+
   const recentOrderColumns: Column<RecentOrder>[] = [
     {
-      key: 'orderNumber',
-      label: 'Order #',
-      render: (value) => <span className="font-medium">{value}</span>,
+      key: 'customerName',
+      label: 'Customer',
+      render: (value) => <span className="font-medium">{value || 'N/A'}</span>,
     },
     {
-      key: 'total',
+      key: 'totalAmount',
       label: 'Total',
       render: (value) => <span className="font-medium">{formatCurrency(value)}</span>,
     },
@@ -157,11 +134,22 @@ export default function AdminClientDetail() {
         <span
           className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize"
           style={{
-            backgroundColor: ORDER_STATUS_COLORS[value] + '20',
-            color: ORDER_STATUS_COLORS[value],
+            backgroundColor: (ORDER_STATUS_COLORS[value] || '#6B7280') + '20',
+            color: ORDER_STATUS_COLORS[value] || '#6B7280',
           }}
         >
-          {value.replace('_', ' ')}
+          {String(value).replace('_', ' ')}
+        </span>
+      ),
+    },
+    {
+      key: 'paymentStatus',
+      label: 'Payment',
+      render: (value) => (
+        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize ${
+          value === 'paid' ? 'bg-green-100 text-green-800' : value === 'refunded' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'
+        }`}>
+          {value}
         </span>
       ),
     },
@@ -172,7 +160,7 @@ export default function AdminClientDetail() {
     },
   ]
 
-  const productColumns: Column<Product>[] = [
+  const productColumns: Column<ProductItem>[] = [
     {
       key: 'name',
       label: 'Product Name',
@@ -181,7 +169,7 @@ export default function AdminClientDetail() {
     {
       key: 'category',
       label: 'Category',
-      render: (value) => <span className="text-sm">{value}</span>,
+      render: (value) => <span className="text-sm capitalize">{value}</span>,
     },
     {
       key: 'basePrice',
@@ -236,39 +224,37 @@ export default function AdminClientDetail() {
           Back to Clients
         </button>
 
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
           <div>
-            <h1 className="text-4xl font-bold mb-2">{client.name}</h1>
-            <p className="text-lg text-muted-foreground">{client.bakeryName}</p>
+            <h1 className="text-4xl font-bold mb-2">{data.name}</h1>
+            <p className="text-lg text-muted-foreground">{data.bakeryName}</p>
+            <p className="text-sm text-muted-foreground mt-1">{data.email}</p>
+            {data.phone && <p className="text-sm text-muted-foreground">{data.phone}</p>}
             <p className="text-sm text-muted-foreground mt-2">
-              Member since {formatDate(client.createdAt)}
+              Member since {formatDate(data.createdAt)}
             </p>
           </div>
 
-          <div className="flex items-center gap-4">
-            <span
-              className="px-4 py-2 rounded-lg font-medium capitalize"
-              style={{
-                backgroundColor:
-                  client.tier === 'hobby'
-                    ? '#E5E7EB'
-                    : client.tier === 'growing'
-                      ? '#FEF3C7'
-                      : client.tier === 'pro'
-                        ? '#FED7AA'
-                        : '#FEE2E2',
-                color:
-                  client.tier === 'hobby'
-                    ? '#1F2937'
-                    : client.tier === 'growing'
-                      ? '#92400E'
-                      : client.tier === 'pro'
-                        ? '#B45309'
-                        : '#991B1B',
-              }}
-            >
-              {client.tier}
-            </span>
+          <div className="flex items-start gap-4">
+            <div>
+              <span
+                className="px-4 py-2 rounded-lg font-medium capitalize inline-block"
+                style={{
+                  backgroundColor:
+                    data.tier === 'hobby' ? '#E5E7EB'
+                    : data.tier === 'growing' ? '#FEF3C7'
+                    : data.tier === 'pro' ? '#FED7AA'
+                    : '#FEE2E2',
+                  color:
+                    data.tier === 'hobby' ? '#1F2937'
+                    : data.tier === 'growing' ? '#92400E'
+                    : data.tier === 'pro' ? '#B45309'
+                    : '#991B1B',
+                }}
+              >
+                {data.tier}
+              </span>
+            </div>
 
             <div>
               <label className="text-sm font-medium text-foreground block mb-1">Change Tier</label>
@@ -277,48 +263,32 @@ export default function AdminClientDetail() {
                 onChange={(e) => handleTierChange(e.target.value)}
                 className="px-3 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm"
               >
-                <option value="hobby">Hobby</option>
-                <option value="growing">Growing</option>
-                <option value="pro">Pro</option>
-                <option value="enterprise">Enterprise</option>
+                <option value="hobby">Hobby (Free)</option>
+                <option value="growing">Starter ($29)</option>
+                <option value="pro">Pro ($79)</option>
+                <option value="enterprise">Enterprise ($199)</option>
               </select>
             </div>
+
+            <button
+              onClick={() => setShowDeleteConfirm(true)}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors mt-5"
+            >
+              <Trash2 size={16} />
+              Delete
+            </button>
           </div>
         </div>
       </div>
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-        <StatCard
-          icon={DollarSign}
-          label="Total Revenue"
-          value={formatCurrency(client.totalRevenue)}
-        />
-        <StatCard
-          icon={DollarSign}
-          label="Monthly Revenue"
-          value={formatCurrency(client.monthlyRevenue)}
-        />
-        <StatCard
-          icon={ShoppingCart}
-          label="Total Orders"
-          value={client.totalOrders}
-        />
-        <StatCard
-          icon={Package}
-          label="Products"
-          value={client.totalProducts}
-        />
-        <StatCard
-          icon={Users}
-          label="Customers"
-          value={client.totalCustomers}
-        />
-        <StatCard
-          icon={Briefcase}
-          label="Employees"
-          value={client.employeeCount}
-        />
+        <StatCard icon={DollarSign} label="Total Revenue" value={formatCurrency(stats.totalRevenue || 0)} />
+        <StatCard icon={DollarSign} label="Monthly Revenue" value={formatCurrency(stats.monthlyRevenue || 0)} />
+        <StatCard icon={ShoppingCart} label="Total Orders" value={stats.totalOrders || 0} />
+        <StatCard icon={Package} label="Products" value={stats.totalProducts || 0} />
+        <StatCard icon={Users} label="Customers" value={stats.totalCustomers || 0} />
+        <StatCard icon={Briefcase} label="Employees" value={stats.totalEmployees || 0} />
       </div>
 
       {/* Charts */}
@@ -334,14 +304,14 @@ export default function AdminClientDetail() {
                 <YAxis stroke="hsl(var(--muted-foreground))" />
                 <Tooltip
                   contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))' }}
-                  formatter={(value) => formatCurrency(Number(value))}
+                  formatter={(value: any) => formatCurrency(Number(value))}
                 />
                 <Bar dataKey="revenue" fill="#F97316" radius={[8, 8, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           ) : (
             <div className="h-[300px] flex items-center justify-center text-muted-foreground">
-              No data available
+              No revenue data yet
             </div>
           )}
         </div>
@@ -357,12 +327,12 @@ export default function AdminClientDetail() {
                   cx="50%"
                   cy="50%"
                   labelLine={false}
-                  label={({ status, count }) => `${status}: ${count}`}
+                  label={({ status, count }: any) => `${String(status).replace('_', ' ')}: ${count}`}
                   outerRadius={100}
                   fill="#8884d8"
                   dataKey="count"
                 >
-                  {orderStatuses.map((entry, index) => (
+                  {orderStatuses.map((entry: any, index: number) => (
                     <Cell
                       key={`cell-${index}`}
                       fill={ORDER_STATUS_COLORS[entry.status] || '#6B7280'}
@@ -374,7 +344,7 @@ export default function AdminClientDetail() {
             </ResponsiveContainer>
           ) : (
             <div className="h-[300px] flex items-center justify-center text-muted-foreground">
-              No data available
+              No order data yet
             </div>
           )}
         </div>
@@ -391,7 +361,7 @@ export default function AdminClientDetail() {
       {/* Products */}
       {products.length > 0 && (
         <div className="card p-6 mb-8">
-          <h3 className="text-lg font-semibold mb-6">Products</h3>
+          <h3 className="text-lg font-semibold mb-6">Products ({products.length})</h3>
           <DataTable columns={productColumns} data={products} keyField="id" />
         </div>
       )}
@@ -401,6 +371,32 @@ export default function AdminClientDetail() {
         <div className="card p-6">
           <h3 className="text-lg font-semibold mb-6">Top Customers</h3>
           <DataTable columns={customerColumns} data={topCustomers} keyField="id" />
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-card rounded-2xl w-full max-w-sm shadow-xl p-6">
+            <h3 className="text-lg font-bold mb-2">Delete Client</h3>
+            <p className="text-muted-foreground mb-6">
+              Are you sure you want to delete <strong>{data.name}</strong> and all their data? This action cannot be undone.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                className="px-4 py-2 text-sm font-medium text-foreground hover:bg-card-hover rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDelete}
+                className="px-4 py-2 text-sm font-medium bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+              >
+                Delete Client
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

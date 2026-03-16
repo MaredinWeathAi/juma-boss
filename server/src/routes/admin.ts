@@ -2,6 +2,8 @@ import { Router } from 'express';
 import { getDatabase } from '../db/index.js';
 import { authenticateToken, AuthRequest } from '../middleware/auth.js';
 import { requireAdmin } from '../middleware/adminGuard.js';
+import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 
 const router = Router();
 
@@ -238,6 +240,157 @@ router.put('/clients/:id/tier', (req: AuthRequest, res) => {
     res.json({ success: true, message: `Client tier updated to ${tier}` });
   } catch (error) {
     res.status(500).json({ error: 'Failed to update client tier' });
+  }
+});
+
+// POST create a new baker client
+router.post('/clients', (req: AuthRequest, res) => {
+  const db = getDatabase();
+  const { name, email, bakeryName, password, tier, phone } = req.body;
+
+  if (!name || !email || !bakeryName || !password) {
+    res.status(400).json({ error: 'Name, email, bakery name, and password are required' });
+    return;
+  }
+
+  const validTiers = ['hobby', 'growing', 'pro', 'enterprise'];
+  const clientTier = tier && validTiers.includes(tier) ? tier : 'hobby';
+
+  try {
+    // Check if email already exists
+    const existing = db.prepare('SELECT id FROM users WHERE email = ?').get(email) as any;
+    if (existing) {
+      res.status(409).json({ error: 'A user with this email already exists' });
+      return;
+    }
+
+    // Hash password
+    const hashedPassword = bcrypt.hashSync(password, 10);
+
+    // Generate slug from bakery name
+    const slug = bakeryName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+
+    const id = crypto.randomUUID();
+    db.prepare(`
+      INSERT INTO users (id, name, email, password, bakery_name, bakery_slug, tier, role, phone, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, 'baker', ?, datetime('now'))
+    `).run(id, name, email, hashedPassword, bakeryName, slug, clientTier, phone || null);
+
+    res.status(201).json({
+      id,
+      name,
+      email,
+      bakeryName,
+      tier: clientTier,
+      phone: phone || null,
+      createdAt: new Date().toISOString(),
+      stats: { totalOrders: 0, totalRevenue: 0, totalProducts: 0, totalCustomers: 0, totalEmployees: 0 },
+    });
+  } catch (error) {
+    console.error('Create client error:', error);
+    res.status(500).json({ error: 'Failed to create client' });
+  }
+});
+
+// PUT update a baker client
+router.put('/clients/:id', (req: AuthRequest, res) => {
+  const db = getDatabase();
+  const { id } = req.params;
+  const { name, email, bakeryName, password, tier, phone } = req.body;
+
+  try {
+    const existing = db.prepare("SELECT id FROM users WHERE id = ? AND role = 'baker'").get(id) as any;
+    if (!existing) {
+      res.status(404).json({ error: 'Client not found' });
+      return;
+    }
+
+    // Check email uniqueness (excluding current user)
+    if (email) {
+      const emailTaken = db.prepare('SELECT id FROM users WHERE email = ? AND id != ?').get(email, id) as any;
+      if (emailTaken) {
+        res.status(409).json({ error: 'Another user already has this email' });
+        return;
+      }
+    }
+
+    const validTiers = ['hobby', 'growing', 'pro', 'enterprise'];
+    const updates: string[] = [];
+    const values: any[] = [];
+
+    if (name) { updates.push('name = ?'); values.push(name); }
+    if (email) { updates.push('email = ?'); values.push(email); }
+    if (bakeryName) {
+      updates.push('bakery_name = ?');
+      values.push(bakeryName);
+      const slug = bakeryName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+      updates.push('bakery_slug = ?');
+      values.push(slug);
+    }
+    if (tier && validTiers.includes(tier)) { updates.push('tier = ?'); values.push(tier); }
+    if (phone !== undefined) { updates.push('phone = ?'); values.push(phone || null); }
+    if (password) {
+      const bcrypt = require('bcryptjs');
+      updates.push('password = ?');
+      values.push(bcrypt.hashSync(password, 10));
+    }
+
+    if (updates.length > 0) {
+      values.push(id);
+      db.prepare(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`).run(...values);
+    }
+
+    res.json({ success: true, message: 'Client updated successfully' });
+  } catch (error) {
+    console.error('Update client error:', error);
+    res.status(500).json({ error: 'Failed to update client' });
+  }
+});
+
+// DELETE a baker client
+router.delete('/clients/:id', (req: AuthRequest, res) => {
+  const db = getDatabase();
+  const { id } = req.params;
+
+  try {
+    const existing = db.prepare("SELECT id, name FROM users WHERE id = ? AND role = 'baker'").get(id) as any;
+    if (!existing) {
+      res.status(404).json({ error: 'Client not found' });
+      return;
+    }
+
+    // Delete related data in order (foreign key deps)
+    const deleteRelated = db.transaction(() => {
+      // Delete order items for this user's orders
+      db.prepare('DELETE FROM order_items WHERE order_id IN (SELECT id FROM orders WHERE user_id = ?)').run(id);
+      // Delete orders
+      db.prepare('DELETE FROM orders WHERE user_id = ?').run(id);
+      // Delete product ingredients / recipes
+      db.prepare('DELETE FROM recipes WHERE product_id IN (SELECT id FROM products WHERE user_id = ?)').run(id);
+      // Delete products
+      db.prepare('DELETE FROM products WHERE user_id = ?').run(id);
+      // Delete customers
+      db.prepare('DELETE FROM customers WHERE user_id = ?').run(id);
+      // Delete employees
+      db.prepare('DELETE FROM employees WHERE user_id = ?').run(id);
+      // Delete ingredients
+      db.prepare('DELETE FROM ingredients WHERE user_id = ?').run(id);
+      // Delete wholesale accounts
+      try { db.prepare('DELETE FROM wholesale_accounts WHERE user_id = ?').run(id); } catch {}
+      // Delete production tasks
+      try { db.prepare('DELETE FROM production_tasks WHERE user_id = ?').run(id); } catch {}
+      // Delete shifts
+      try { db.prepare('DELETE FROM shifts WHERE employee_id IN (SELECT id FROM employees WHERE user_id = ?)').run(id); } catch {}
+      // Finally delete the user
+      db.prepare('DELETE FROM users WHERE id = ?').run(id);
+    });
+
+    deleteRelated();
+
+    res.json({ success: true, message: `Client "${existing.name}" deleted successfully` });
+  } catch (error) {
+    console.error('Delete client error:', error);
+    res.status(500).json({ error: 'Failed to delete client' });
   }
 });
 
