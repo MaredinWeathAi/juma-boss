@@ -1,3 +1,5 @@
+export type Tier = 'hobby' | 'growing' | 'pro' | 'enterprise'
+
 export interface User {
   id: string;
   name: string;
@@ -5,10 +7,36 @@ export interface User {
   bakeryName: string;
   phone?: string;
   bio?: string;
-  role: 'owner' | 'manager' | 'employee';
-  tier: 'free' | 'pro' | 'enterprise';
+  role: 'admin' | 'owner' | 'manager' | 'employee';
+  tier: Tier;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface PricingPlan {
+  tier: Tier;
+  name: string;
+  price: number;
+  description: string;
+  features: string[];
+  limits?: {
+    orders?: number;
+    products?: number;
+    customers?: number;
+  };
+}
+
+export interface TierLimits {
+  tier: Tier;
+  orders: number;
+  products: number;
+  customers: number;
+}
+
+export interface UserUsage {
+  ordersCount: number;
+  productsCount: number;
+  customersCount: number;
 }
 
 export interface Product {

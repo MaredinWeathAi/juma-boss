@@ -25,6 +25,7 @@ export function initializeSchema() {
       bio TEXT,
       profile_image TEXT,
       tier TEXT DEFAULT 'hobby' CHECK(tier IN ('hobby', 'growing', 'pro', 'enterprise')),
+      role TEXT DEFAULT 'baker' CHECK(role IN ('admin', 'baker')),
       created_at TEXT NOT NULL
     )
   `);
@@ -243,6 +244,13 @@ export function initializeSchema() {
       FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
     )
   `);
+
+  // Migration: add role column if not exists
+  try {
+    db.exec(`ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'baker'`);
+  } catch (_e) {
+    // Column already exists
+  }
 
   // Create indexes for common queries
   db.exec(`

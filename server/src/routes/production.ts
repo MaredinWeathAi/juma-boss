@@ -2,11 +2,12 @@ import { Router } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { getDatabase } from '../db/index.js';
 import { authenticateToken, AuthRequest } from '../middleware/auth.js';
+import { requireTier } from '../middleware/tierGuard.js';
 
 const router = Router();
 
 // GET production schedule by date
-router.get('/schedule/:date', authenticateToken, (req: AuthRequest, res) => {
+router.get('/schedule/:date', authenticateToken, requireTier('growing'), (req: AuthRequest, res) => {
   const db = getDatabase();
   const { date } = req.params;
 
@@ -51,7 +52,7 @@ router.get('/schedule/:date', authenticateToken, (req: AuthRequest, res) => {
 });
 
 // GET all production tasks
-router.get('/', authenticateToken, (req: AuthRequest, res) => {
+router.get('/', authenticateToken, requireTier('growing'), (req: AuthRequest, res) => {
   const db = getDatabase();
   const status = (req.query.status as string) || null;
 
@@ -102,7 +103,7 @@ router.get('/', authenticateToken, (req: AuthRequest, res) => {
 });
 
 // GET single production task
-router.get('/:id', authenticateToken, (req: AuthRequest, res) => {
+router.get('/:id', authenticateToken, requireTier('growing'), (req: AuthRequest, res) => {
   const db = getDatabase();
 
   try {
@@ -170,7 +171,7 @@ router.get('/:id', authenticateToken, (req: AuthRequest, res) => {
 });
 
 // CREATE production task
-router.post('/', authenticateToken, (req: AuthRequest, res) => {
+router.post('/', authenticateToken, requireTier('growing'), (req: AuthRequest, res) => {
   const { productId, orderId, scheduledDate, startTime, endTime, assignedTo, notes } = req.body;
 
   if (!productId || !scheduledDate) {
@@ -236,7 +237,7 @@ router.post('/', authenticateToken, (req: AuthRequest, res) => {
 });
 
 // UPDATE production task
-router.put('/:id', authenticateToken, (req: AuthRequest, res) => {
+router.put('/:id', authenticateToken, requireTier('growing'), (req: AuthRequest, res) => {
   const { status, startTime, endTime, assignedTo, notes } = req.body;
   const db = getDatabase();
 
@@ -277,7 +278,7 @@ router.put('/:id', authenticateToken, (req: AuthRequest, res) => {
 });
 
 // DELETE production task
-router.delete('/:id', authenticateToken, (req: AuthRequest, res) => {
+router.delete('/:id', authenticateToken, requireTier('growing'), (req: AuthRequest, res) => {
   const db = getDatabase();
 
   try {
@@ -297,7 +298,7 @@ router.delete('/:id', authenticateToken, (req: AuthRequest, res) => {
 });
 
 // Auto-generate production tasks from orders (for pending/confirmed orders)
-router.post('/auto-generate/:orderId', authenticateToken, (req: AuthRequest, res) => {
+router.post('/auto-generate/:orderId', authenticateToken, requireTier('growing'), (req: AuthRequest, res) => {
   const db = getDatabase();
 
   try {

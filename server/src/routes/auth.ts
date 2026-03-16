@@ -29,8 +29,8 @@ router.post('/register', (req: AuthRequest, res) => {
 
   try {
     db.prepare(`
-      INSERT INTO users (id, email, password, name, bakery_name, bakery_slug, tier, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO users (id, email, password, name, bakery_name, bakery_slug, tier, role, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       userId,
       email,
@@ -39,6 +39,7 @@ router.post('/register', (req: AuthRequest, res) => {
       bakeryName,
       bakerySlug,
       'hobby',
+      'baker',
       new Date().toISOString()
     );
 
@@ -50,6 +51,7 @@ router.post('/register', (req: AuthRequest, res) => {
       bakeryName,
       bakerySlug,
       tier: 'hobby',
+      role: 'baker',
       token,
     });
   } catch (error) {
@@ -87,6 +89,7 @@ router.post('/login', (req: AuthRequest, res) => {
       bio: user.bio,
       profileImage: user.profile_image,
       tier: user.tier,
+      role: user.role,
       token,
     });
   } catch (error) {
@@ -115,6 +118,7 @@ router.get('/me', authenticateToken, (req: AuthRequest, res) => {
       bio: user.bio,
       profileImage: user.profile_image,
       tier: user.tier,
+      role: user.role,
     });
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch user' });

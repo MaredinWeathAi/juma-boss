@@ -1,11 +1,12 @@
 import { Router } from 'express';
 import { getDatabase } from '../db/index.js';
 import { authenticateToken, AuthRequest } from '../middleware/auth.js';
+import { requireTier } from '../middleware/tierGuard.js';
 
 const router = Router();
 
 // GET financial summary
-router.get('/summary', authenticateToken, (req: AuthRequest, res) => {
+router.get('/summary', authenticateToken, requireTier('pro'), (req: AuthRequest, res) => {
   const db = getDatabase();
   const period = (req.query.period as string) || 'all'; // all, month, quarter, year
 
@@ -131,7 +132,7 @@ router.get('/summary', authenticateToken, (req: AuthRequest, res) => {
 });
 
 // GET product profitability analysis
-router.get('/product-profitability', authenticateToken, (req: AuthRequest, res) => {
+router.get('/product-profitability', authenticateToken, requireTier('pro'), (req: AuthRequest, res) => {
   const db = getDatabase();
 
   try {
@@ -182,7 +183,7 @@ router.get('/product-profitability', authenticateToken, (req: AuthRequest, res) 
 });
 
 // GET cash flow projection
-router.get('/cash-flow', authenticateToken, (req: AuthRequest, res) => {
+router.get('/cash-flow', authenticateToken, requireTier('pro'), (req: AuthRequest, res) => {
   const db = getDatabase();
 
   try {
@@ -247,7 +248,7 @@ router.get('/cash-flow', authenticateToken, (req: AuthRequest, res) => {
 });
 
 // GET payment status breakdown
-router.get('/payment-breakdown', authenticateToken, (req: AuthRequest, res) => {
+router.get('/payment-breakdown', authenticateToken, requireTier('pro'), (req: AuthRequest, res) => {
   const db = getDatabase();
 
   try {
@@ -276,7 +277,7 @@ router.get('/payment-breakdown', authenticateToken, (req: AuthRequest, res) => {
 });
 
 // GET category profitability
-router.get('/category-analysis', authenticateToken, (req: AuthRequest, res) => {
+router.get('/category-analysis', authenticateToken, requireTier('pro'), (req: AuthRequest, res) => {
   const db = getDatabase();
 
   try {

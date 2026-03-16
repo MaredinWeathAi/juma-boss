@@ -19,6 +19,8 @@ import wholesaleRoutes from './routes/wholesale.js';
 import marketplaceRoutes from './routes/marketplace.js';
 import storefrontRoutes from './routes/storefront.js';
 import financialRoutes from './routes/financial.js';
+import tierRoutes from './routes/tier.js';
+import adminRoutes from './routes/admin.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -67,6 +69,8 @@ app.use('/api/wholesale', wholesaleRoutes);
 app.use('/api/marketplace', marketplaceRoutes);
 app.use('/api/storefront', storefrontRoutes);
 app.use('/api/financial', financialRoutes);
+app.use('/api/tier', tierRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Serve static files in production
 const clientDist = path.join(__dirname, '../../client/dist');

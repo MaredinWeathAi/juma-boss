@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { getDatabase } from '../db/index.js';
 import { authenticateToken, AuthRequest } from '../middleware/auth.js';
+import { checkHobbyLimits } from '../middleware/tierGuard.js';
 
 const router = Router();
 
@@ -88,7 +89,7 @@ router.get('/:id', authenticateToken, (req: AuthRequest, res) => {
 });
 
 // CREATE customer
-router.post('/', authenticateToken, (req: AuthRequest, res) => {
+router.post('/', authenticateToken, checkHobbyLimits('customers'), (req: AuthRequest, res) => {
   const { name, email, phone, address, birthday, notes, isCorporate, companyName } = req.body;
 
   if (!name) {

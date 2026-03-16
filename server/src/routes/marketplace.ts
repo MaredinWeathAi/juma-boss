@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { getDatabase } from '../db/index.js';
 import { authenticateToken, AuthRequest } from '../middleware/auth.js';
+import { requireTier } from '../middleware/tierGuard.js';
 
 const router = Router();
 
@@ -71,7 +72,7 @@ router.get('/search', (req: AuthRequest, res) => {
 });
 
 // Get user's marketplace listings
-router.get('/', authenticateToken, (req: AuthRequest, res) => {
+router.get('/', authenticateToken, requireTier('enterprise'), (req: AuthRequest, res) => {
   const db = getDatabase();
 
   try {
@@ -150,7 +151,7 @@ router.get('/:id', (req: AuthRequest, res) => {
 });
 
 // CREATE marketplace listing
-router.post('/', authenticateToken, (req: AuthRequest, res) => {
+router.post('/', authenticateToken, requireTier('enterprise'), (req: AuthRequest, res) => {
   const { productId, isFeatured, area, deliveryAvailable, minOrder } = req.body;
 
   if (!productId) {
@@ -202,7 +203,7 @@ router.post('/', authenticateToken, (req: AuthRequest, res) => {
 });
 
 // UPDATE marketplace listing
-router.put('/:id', authenticateToken, (req: AuthRequest, res) => {
+router.put('/:id', authenticateToken, requireTier('enterprise'), (req: AuthRequest, res) => {
   const { isFeatured, area, deliveryAvailable, minOrder } = req.body;
   const db = getDatabase();
 
@@ -241,7 +242,7 @@ router.put('/:id', authenticateToken, (req: AuthRequest, res) => {
 });
 
 // DELETE marketplace listing
-router.delete('/:id', authenticateToken, (req: AuthRequest, res) => {
+router.delete('/:id', authenticateToken, requireTier('enterprise'), (req: AuthRequest, res) => {
   const db = getDatabase();
 
   try {

@@ -2,11 +2,12 @@ import { Router } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { getDatabase } from '../db/index.js';
 import { authenticateToken, AuthRequest } from '../middleware/auth.js';
+import { requireTier } from '../middleware/tierGuard.js';
 
 const router = Router();
 
 // GET all employees
-router.get('/', authenticateToken, (req: AuthRequest, res) => {
+router.get('/', authenticateToken, requireTier('pro'), (req: AuthRequest, res) => {
   const db = getDatabase();
 
   try {
@@ -36,7 +37,7 @@ router.get('/', authenticateToken, (req: AuthRequest, res) => {
 });
 
 // GET single employee with shifts
-router.get('/:id', authenticateToken, (req: AuthRequest, res) => {
+router.get('/:id', authenticateToken, requireTier('pro'), (req: AuthRequest, res) => {
   const db = getDatabase();
 
   try {
@@ -81,7 +82,7 @@ router.get('/:id', authenticateToken, (req: AuthRequest, res) => {
 });
 
 // CREATE employee
-router.post('/', authenticateToken, (req: AuthRequest, res) => {
+router.post('/', authenticateToken, requireTier('pro'), (req: AuthRequest, res) => {
   const { name, email, phone, role, hourlyRate } = req.body;
 
   if (!name || !role) {
@@ -125,7 +126,7 @@ router.post('/', authenticateToken, (req: AuthRequest, res) => {
 });
 
 // UPDATE employee
-router.put('/:id', authenticateToken, (req: AuthRequest, res) => {
+router.put('/:id', authenticateToken, requireTier('pro'), (req: AuthRequest, res) => {
   const { name, email, phone, role, hourlyRate, isActive } = req.body;
   const db = getDatabase();
 
@@ -168,7 +169,7 @@ router.put('/:id', authenticateToken, (req: AuthRequest, res) => {
 });
 
 // DELETE employee
-router.delete('/:id', authenticateToken, (req: AuthRequest, res) => {
+router.delete('/:id', authenticateToken, requireTier('pro'), (req: AuthRequest, res) => {
   const db = getDatabase();
 
   try {
@@ -188,7 +189,7 @@ router.delete('/:id', authenticateToken, (req: AuthRequest, res) => {
 });
 
 // GET employee shifts
-router.get('/:id/shifts', authenticateToken, (req: AuthRequest, res) => {
+router.get('/:id/shifts', authenticateToken, requireTier('pro'), (req: AuthRequest, res) => {
   const db = getDatabase();
   const fromDate = (req.query.from as string) || null;
   const toDate = (req.query.to as string) || null;
@@ -236,7 +237,7 @@ router.get('/:id/shifts', authenticateToken, (req: AuthRequest, res) => {
 });
 
 // CREATE shift
-router.post('/:id/shifts', authenticateToken, (req: AuthRequest, res) => {
+router.post('/:id/shifts', authenticateToken, requireTier('pro'), (req: AuthRequest, res) => {
   const { date, startTime, endTime, notes } = req.body;
 
   if (!date || !startTime || !endTime) {
@@ -274,7 +275,7 @@ router.post('/:id/shifts', authenticateToken, (req: AuthRequest, res) => {
 });
 
 // DELETE shift
-router.delete('/:id/shifts/:shiftId', authenticateToken, (req: AuthRequest, res) => {
+router.delete('/:id/shifts/:shiftId', authenticateToken, requireTier('pro'), (req: AuthRequest, res) => {
   const db = getDatabase();
 
   try {
@@ -294,7 +295,7 @@ router.delete('/:id/shifts/:shiftId', authenticateToken, (req: AuthRequest, res)
 });
 
 // GET payroll summary
-router.get('/payroll/summary', authenticateToken, (req: AuthRequest, res) => {
+router.get('/payroll/summary', authenticateToken, requireTier('pro'), (req: AuthRequest, res) => {
   const db = getDatabase();
   const fromDate = (req.query.from as string) || null;
   const toDate = (req.query.to as string) || null;

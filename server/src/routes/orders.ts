@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { getDatabase } from '../db/index.js';
 import { authenticateToken, AuthRequest } from '../middleware/auth.js';
+import { checkHobbyLimits } from '../middleware/tierGuard.js';
 
 const router = Router();
 
@@ -113,7 +114,7 @@ router.get('/:id', authenticateToken, (req: AuthRequest, res) => {
 });
 
 // CREATE order
-router.post('/', authenticateToken, (req: AuthRequest, res) => {
+router.post('/', authenticateToken, checkHobbyLimits('orders'), (req: AuthRequest, res) => {
   const { customerId, items, deliveryDate, deliveryTime, deliveryType, paymentStatus, notes } = req.body;
 
   if (!customerId || !items || !Array.isArray(items) || items.length === 0) {

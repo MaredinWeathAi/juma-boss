@@ -2,11 +2,12 @@ import { Router } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { getDatabase } from '../db/index.js';
 import { authenticateToken, AuthRequest } from '../middleware/auth.js';
+import { requireTier } from '../middleware/tierGuard.js';
 
 const router = Router();
 
 // GET all wholesale accounts
-router.get('/accounts', authenticateToken, (req: AuthRequest, res) => {
+router.get('/accounts', authenticateToken, requireTier('pro'), (req: AuthRequest, res) => {
   const db = getDatabase();
 
   try {
@@ -38,7 +39,7 @@ router.get('/accounts', authenticateToken, (req: AuthRequest, res) => {
 });
 
 // GET single wholesale account with orders
-router.get('/accounts/:id', authenticateToken, (req: AuthRequest, res) => {
+router.get('/accounts/:id', authenticateToken, requireTier('pro'), (req: AuthRequest, res) => {
   const db = getDatabase();
 
   try {
@@ -84,7 +85,7 @@ router.get('/accounts/:id', authenticateToken, (req: AuthRequest, res) => {
 });
 
 // CREATE wholesale account
-router.post('/accounts', authenticateToken, (req: AuthRequest, res) => {
+router.post('/accounts', authenticateToken, requireTier('pro'), (req: AuthRequest, res) => {
   const { companyName, contactName, email, phone, address, discountPercent, paymentTerms } = req.body;
 
   if (!companyName || !contactName) {
@@ -131,7 +132,7 @@ router.post('/accounts', authenticateToken, (req: AuthRequest, res) => {
 });
 
 // UPDATE wholesale account
-router.put('/accounts/:id', authenticateToken, (req: AuthRequest, res) => {
+router.put('/accounts/:id', authenticateToken, requireTier('pro'), (req: AuthRequest, res) => {
   const { companyName, contactName, email, phone, address, discountPercent, paymentTerms, isActive } = req.body;
   const db = getDatabase();
 
@@ -178,7 +179,7 @@ router.put('/accounts/:id', authenticateToken, (req: AuthRequest, res) => {
 });
 
 // DELETE wholesale account
-router.delete('/accounts/:id', authenticateToken, (req: AuthRequest, res) => {
+router.delete('/accounts/:id', authenticateToken, requireTier('pro'), (req: AuthRequest, res) => {
   const db = getDatabase();
 
   try {
@@ -198,7 +199,7 @@ router.delete('/accounts/:id', authenticateToken, (req: AuthRequest, res) => {
 });
 
 // GET wholesale orders
-router.get('/orders', authenticateToken, (req: AuthRequest, res) => {
+router.get('/orders', authenticateToken, requireTier('pro'), (req: AuthRequest, res) => {
   const db = getDatabase();
   const status = (req.query.status as string) || null;
 
@@ -238,7 +239,7 @@ router.get('/orders', authenticateToken, (req: AuthRequest, res) => {
 });
 
 // GET single wholesale order
-router.get('/orders/:id', authenticateToken, (req: AuthRequest, res) => {
+router.get('/orders/:id', authenticateToken, requireTier('pro'), (req: AuthRequest, res) => {
   const db = getDatabase();
 
   try {
@@ -272,7 +273,7 @@ router.get('/orders/:id', authenticateToken, (req: AuthRequest, res) => {
 });
 
 // CREATE wholesale order
-router.post('/orders', authenticateToken, (req: AuthRequest, res) => {
+router.post('/orders', authenticateToken, requireTier('pro'), (req: AuthRequest, res) => {
   const { wholesaleAccountId, deliveryDate, notes } = req.body;
 
   if (!wholesaleAccountId) {
@@ -313,7 +314,7 @@ router.post('/orders', authenticateToken, (req: AuthRequest, res) => {
 });
 
 // UPDATE wholesale order
-router.put('/orders/:id', authenticateToken, (req: AuthRequest, res) => {
+router.put('/orders/:id', authenticateToken, requireTier('pro'), (req: AuthRequest, res) => {
   const { status, deliveryDate, notes } = req.body;
   const db = getDatabase();
 
@@ -346,7 +347,7 @@ router.put('/orders/:id', authenticateToken, (req: AuthRequest, res) => {
 });
 
 // DELETE wholesale order
-router.delete('/orders/:id', authenticateToken, (req: AuthRequest, res) => {
+router.delete('/orders/:id', authenticateToken, requireTier('pro'), (req: AuthRequest, res) => {
   const db = getDatabase();
 
   try {
@@ -366,7 +367,7 @@ router.delete('/orders/:id', authenticateToken, (req: AuthRequest, res) => {
 });
 
 // GET wholesale statistics
-router.get('/stats/summary', authenticateToken, (req: AuthRequest, res) => {
+router.get('/stats/summary', authenticateToken, requireTier('pro'), (req: AuthRequest, res) => {
   const db = getDatabase();
 
   try {
